@@ -1,5 +1,6 @@
 # -*- coding: UTF-8 -*-
 import os
+import time
 import github
 import githubutil
 from githubutil.github import GithubOperator
@@ -39,6 +40,9 @@ def build_issue(trans, branch, item_list):
     new_count = 0
     skip_count = 0
     for file_name in file_list:
+        # Patch priority labels
+        patched_labels =  new_labels + trans.get_priority_labels(REPOSITORY_NAME, file_name)
+
         # Generate issue body
         if is_diff:
             diff = item_list[file_name]
@@ -58,7 +62,7 @@ def build_issue(trans, branch, item_list):
         # Search and create issue
         new_issue = trans.create_issue(
             task_repository_name(),
-            file_name, body, new_labels, search_labels,
+            file_name, body, patched_labels, search_labels,
             "", True
         )
         if new_issue is None:
@@ -219,6 +223,26 @@ class TransBot(BotPlugin):
             ["{}: {}".format(i.number, i.title)
              for i in issue_list])
         return "\n".join(result)
+
+    @botcmd
+    def confirm_all_new_issues(self, msg, args):
+        """
+        Find issues with the label "welcome" then replace with "pending" label
+        :param msg:
+        :param args:
+        :return:
+        """
+        self._asset_bind(msg)
+        yield ("Processing....")
+        client = self._github_operator(msg)
+        cmd = "repo:{} label:welcome is:open type:issue".format(
+            task_repository_name())
+        issue_list = client.search_issue(cmd, 10)
+        for issue in issue_list:
+            issue.remove_from_labels("welcome")
+            issue.add_to_labels("pending")
+            time.sleep(1)
+        return "{} issues confirmed.".format(len(issue_list))   
 
     @arg_botcmd('issue_id', type=int)
     @arg_botcmd('--comment', type=str)

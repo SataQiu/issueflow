@@ -9,23 +9,30 @@ repositories:
         repository: istio.io
     valid_extensions:
     - ".md"
-    labels:
-    - priority/P0
+    priorities:
+    - patterns: ['^\/blog\/.*?$', '^\/news\/.*?$', '^\/faq\/.*?$', '^\/about\/.*?$']
+      labels: ['priority/P3']
+    - patterns: ['^\/docs\/reference\/.*?$']
+      labels: ['priority/P2']
+    - patterns: ['^\/docs\/ops\/performance-and-scalability\/.*?$', '^\/docs\/ops\/diagnostic-tools\/.*?$', '^\/docs\/examples\/multicluster\/.*?$', '^\/docs\/examples\/mesh-expansion\/.*?$', '^\/docs\/setup\/upgrade\/.*?$', '^\/docs\/setup\/deployment-models\/.*?$', '^\/docs\/setup\/additional-setup\/.*?$']
+      labels: ['priority/P1']
+    - patterns: ['^\/.*?$']
+      labels: ['priority/P0']
     branches:
-    - name: "1.1"
-      target_branch: release-1.1
-      path: "/errbot/repository/1.1"
+    - name: "1.4"
+      target_branch: master
+      path: "/errbot/repository/master"
       url_prefix:
-        source: "https://github.com/istio/istio.io/tree/release-1.1/content"
+        source: "https://github.com/istio/istio.io/tree/master/content/en"
       labels:
-      - version/1.1
+      - version/1.4
       ignore: ['^\/test\/.*?$', '^\/boilerplates\/test.*?$']
     source:
       name: en
-      path: content
+      path: content/en
     languages:
     - name: zh
-      path: content_zh
+      path: content/zh
       labels:
       - lang/zh
       target_labels:

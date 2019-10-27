@@ -106,10 +106,25 @@ class TranslateUtil:
         github_client = GithubOperator(self._github_token)
         github_client.check_limit(core_limit, search_limit)
 
+    def _md5Hash(self, fd):
+        line = fd.readline()
+        hash = hashlib.md5()
+        while (line):
+            hash.update(line)
+            line = fd.readline()
+        return hash.hexdigest()
+
+    def _is_same(self, source_file, target_file):
+        source_fd = open(source_file, "rb")
+        target_fd = open(target_file, "rb")
+        return self._md5Hash(source_fd) == self._md5Hash(target_fd)
+
     def find_new_files(self, repository_name, branch_name, language):
         """
         Find files which is in the source path, but not in the
         target path, and return it as a List of string.
+        If the translated document is exactly the same as the original document, 
+        it is considered untranslated.
 
         :param branch_name:
         :param repository_name:
@@ -117,6 +132,8 @@ class TranslateUtil:
         :param language: Language name (in the configure file)
         :type language: str
         """
+        repo_base_path = self._configure.get_branch(repository_name, branch_name)["path"]
+
         target_path = self._configure.get_languages(
             repository_name, language)["path"]
         source_path = self._configure.get_source(
@@ -129,7 +146,15 @@ class TranslateUtil:
                                             branch_name, target_path)
 
         # return the different files list
-        result = list(set(source_list) - set(target_list))
+        target_set = set(target_list)
+        translated_set = set()
+        for  source_file in source_list:
+            if source_file in target_set:
+                full_source_file = os.sep.join([repo_base_path, source_path, source_file])
+                full_target_file = os.sep.join([repo_base_path, target_path, source_file])
+                if not self._is_same(full_source_file, full_target_file):
+                    translated_set.add(source_file)
+        result = list(set(source_list) - translated_set)
         result.sort()
         return self._remove_ignore_files(result, repository_name, branch_name)
 
@@ -223,9 +248,22 @@ class TranslateUtil:
         :param language:
         :return:
         """
-        labels = self._configure.get_repository(repository_name)["labels"]
-        labels += self._configure.get_branch(repository_name, branch)["labels"]
+        labels = self._configure.get_branch(repository_name, branch)["labels"]
         labels += self._configure.get_languages(repository_name, language)["labels"]
+        return labels
+
+    def get_priority_labels(self, repository_name, file_name):
+        """
+        Find right priority labels by regular matching,  the first matched labels will be returned.
+        :param repository_name:
+        :param file_name:
+        :return:
+        """
+        priority_matches= self._configure.get_repository(repository_name)["priorities"]
+        for priority_match in priority_matches:
+            for pattern in priority_match["patterns"]:
+                if re.match(pattern, file_name):
+                    return  priority_match["labels"]
         return labels
 
     def get_search_label(self, repository_name, branch, language):

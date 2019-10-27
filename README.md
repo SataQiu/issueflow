@@ -108,21 +108,21 @@ There are some needed configuration during the Bot startup:
 docker run -d --name=istio-slack-bot \
         --restart=always \
         -e BOT_LOG_LEVEL=INFO \
-        -e BOT_ADMINS=@dustise \ # Administrator's slack name
+        -e BOT_ADMINS=@1527062125 \ # Administrator's slack name
         -e REPOSITORY="istio" \ # Repo name in the configure file
         -e REPOSITORY_CONFIG_FILE="/errbot/config/repository.yaml" \ # Config file directory
         -e MAX_RESULT=10 \ # Max output # of issues at a time
-        -e MAX_WRITE=30 \ # Max issues at a time
+        -e MAX_WRITE=500 \ # Max issues at a time
         -e TARGET_LANG="zh" \ # Target translation language
         -e BOT_TOKEN="xoxb-" \ # Slack Bot's Token
         -e BACKEND="Slack" \ # Backend as Slack
-        -e CRITICAL_COMMANDS="find_new_files_in,find_updated_files_in,cache_issue" \ # Critical command list
-        -e OPERATORS="@dustise" \ # The administrator to execute the commands
+        -e CRITICAL_COMMANDS="find_new_files_in,find_updated_files_in,cache_issue,confirm_all_new_issues" \ # Critical command list
+        -e OPERATORS="@1527062125" \ # The administrator to execute the commands
         -e PRIVATE_COMMANDS="whatsnew,github_bind,github_whoami" \ # Commands can be used in DM
         -v $(pwd)/data:/errbot/data \ # Bot's storage directory
         -v $(pwd)/config:/errbot/config \ # Bot's configure directory
         -v $(pwd)/repository:/errbot/repository \ # Repository directory
-        dustise/translat-chatbot:20190213-3 # Docker image name
+        shidaqiu/translat-chatbot:1.1 # Docker image name
 ~~~
 
 
