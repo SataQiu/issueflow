@@ -74,29 +74,48 @@ Below is the example that currently used in the Istio localization project:
 ~~~yaml
 repositories:
   istio:
-    github: # task repository information
-      owner: servicemesher
-      repository: istio-official-translation
-    valid_extensions: # only track `.md` file changes for generating tasks
+    github:
+      task:
+        owner: servicemesher
+        repository: istio-official-translation
+      code:
+        owner: istio
+        repository: istio.io
+    valid_extensions:
     - ".md"
-    labels: # newly-created tasks, along with the following labels as default
-    - priority/P0
-    branches: # branch info, every branch will have its own checkout directory
-    - name: "1.1" # name identifier, would be used in the ChatBot
-      value: master
-      path: "/errbot/repository/master" # container directory after mounted
-      url_prefix: # prefix included in the created task
-        source: "https://github.com/istio/istio.io/tree/master/content"
-      labels: # default label for this branch when creating the task
-      - version/1.1
-    source: # source file and relative directory
+    priorities:
+    - patterns: ['^\/blog\/.*?$', '^\/news\/.*?$', '^\/faq\/.*?$', '^\/about\/.*?$']
+      labels: ['priority/P3']
+    - patterns: ['^\/docs\/reference\/.*?$']
+      labels: ['priority/P2']
+    - patterns: ['^\/docs\/ops\/performance-and-scalability\/.*?$', '^\/docs\/ops\/diagnostic-tools\/.*?$', '^\/docs\/examples\/multicluster\/.*?$', '^\/docs\/examples\/mesh-expansion\/.*?$', '^\/docs\/setup\/upgrade\/.*?$', '^\/docs\/setup\/deployment-models\/.*?$', '^\/docs\/setup\/additional-setup\/.*?$']
+      labels: ['priority/P1']
+    - patterns: ['^\/.*?$']
+      labels: ['priority/P0']
+    branches:
+    - name: "1.4"
+      target_branch: master
+      path: "/errbot/repository/master"
+      url_prefix:
+        source: "https://github.com/istio/istio.io/tree/master/content/en"
+      labels:
+      - version/1.4
+      ignore: ['^\/test\/.*?$', '^\/boilerplates\/test.*?$']
+    source:
       name: en
-      path: content
-    languages: # target file name and relative directory
+      path: content/en
+    languages:
     - name: zh
-      path: content_zh
-      labels: # default label for this localization task
+      path: content/zh
+      labels:
       - lang/zh
+      target_labels:
+      - translation/chinese
+    status:
+      pushed: pushed
+      merged: merged
+      pending: pending
+      working: translating
 ~~~
 
 ### Startup Script
@@ -122,7 +141,7 @@ docker run -d --name=istio-slack-bot \
         -v $(pwd)/data:/errbot/data \ # Bot's storage directory
         -v $(pwd)/config:/errbot/config \ # Bot's configure directory
         -v $(pwd)/repository:/errbot/repository \ # Repository directory
-        shidaqiu/translat-chatbot:1.1 # Docker image name
+        shidaqiu/translate-chatbot:1.1 # Docker image name
 ~~~
 
 

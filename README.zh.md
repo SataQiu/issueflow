@@ -79,29 +79,48 @@ Bot 的配置文件是一段 yaml 代码，例如 Istio 项目目前使用的配
 ~~~yaml
 repositories:
   istio:
-    github: # 任务仓库的信息
-      owner: servicemesher
-      repository: istio-official-translation
-    valid_extensions: # 只使用扩展名为 .md 的文件作为任务素材
+    github:
+      task:
+        owner: servicemesher
+        repository: istio-official-translation
+      code:
+        owner: istio
+        repository: istio.io
+    valid_extensions:
     - ".md"
-    labels: # 新生成的任务，都会带有下列标签。
-    - priority/P0
-    branches: # 分支信息，每个分支都是一个 checkout 到指定分支的目录
-    - name: "1.1" # 名称标识，在和 Bot 的对话中会用到。
-      value: master
-      path: "/errbot/repository/master" # 容器加载后的路径
-      url_prefix: # 在新建任务时使用这一前缀生成源文件链接。
-        source: "https://github.com/istio/istio.io/tree/master/content"
-      labels: # 本分支新建任务的缺省标签组。
-      - version/1.1
-    source: # 源文件名称和相对路径
+    priorities:
+    - patterns: ['^\/blog\/.*?$', '^\/news\/.*?$', '^\/faq\/.*?$', '^\/about\/.*?$']
+      labels: ['priority/P3']
+    - patterns: ['^\/docs\/reference\/.*?$']
+      labels: ['priority/P2']
+    - patterns: ['^\/docs\/ops\/performance-and-scalability\/.*?$', '^\/docs\/ops\/diagnostic-tools\/.*?$', '^\/docs\/examples\/multicluster\/.*?$', '^\/docs\/examples\/mesh-expansion\/.*?$', '^\/docs\/setup\/upgrade\/.*?$', '^\/docs\/setup\/deployment-models\/.*?$', '^\/docs\/setup\/additional-setup\/.*?$']
+      labels: ['priority/P1']
+    - patterns: ['^\/.*?$']
+      labels: ['priority/P0']
+    branches:
+    - name: "1.4"
+      target_branch: master
+      path: "/errbot/repository/master"
+      url_prefix:
+        source: "https://github.com/istio/istio.io/tree/master/content/en"
+      labels:
+      - version/1.4
+      ignore: ['^\/test\/.*?$', '^\/boilerplates\/test.*?$']
+    source:
       name: en
-      path: content
-    languages: # 目标文件名称和相对路径
+      path: content/en
+    languages:
     - name: zh
-      path: content_zh
-      labels: # 该语言翻译任务的缺省标签
+      path: content/zh
+      labels:
       - lang/zh
+      target_labels:
+      - translation/chinese
+    status:
+      pushed: pushed
+      merged: merged
+      pending: pending
+      working: translating
 ~~~
 
 #### 启动脚本
@@ -127,7 +146,7 @@ docker run -d --name=istio-slack-bot \
         -v $(pwd)/data:/errbot/data \ # Bot 的存储路径
         -v $(pwd)/config:/errbot/config \ # Bot 的配置路径
         -v $(pwd)/repository:/errbot/repository \ # 代码库路径
-        shidaqiu/translat-chatbot:1.1 # 镜像名称
+        shidaqiu/translate-chatbot:1.1 # 镜像名称
 ~~~
 
 ### Bot 指令

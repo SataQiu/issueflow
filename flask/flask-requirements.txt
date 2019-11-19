@@ -2,3 +2,5 @@ github-webhook
 PyGithub
 PyYAML
 Flask
+gunicorn
+gevent
