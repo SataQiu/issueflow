@@ -18,7 +18,7 @@ docker run -d --name=istio-slack-bot \
         -e TARGET_LANG="zh" \ # 翻译语种名称
         -e BOT_TOKEN="xoxb-" \ # Slack Bot 的 Token
         -e BACKEND="Slack" \ # 指定使用 Slack 后端
-        -e CRITICAL_COMMANDS="find_new_files_in,find_updated_files_in,cache_issue,confirm_all_new_issues" \ # 关键命令列表
+        -e CRITICAL_COMMANDS="find_new_files_in,find_updated_files_in,cache_issue,confirm_all_new_issues,release_issues" \ # 关键命令列表
         -e OPERATORS="@1527062125" \ # 可以执行关键命令的操作员
         -e PRIVATE_COMMANDS="whatsnew,github_bind,github_whoami" \ # 仅能在私聊窗口中使用的命令
         -v $(pwd)/data:/errbot/data \ # Bot 的存储路径

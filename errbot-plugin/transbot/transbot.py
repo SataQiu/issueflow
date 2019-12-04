@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 import os
 import time
+import datetime
 import github
 import githubutil
 from githubutil.github import GithubOperator
@@ -20,7 +21,7 @@ TARGET_LANG = os.getenv("TARGET_LANG")
 
 def build_issue(trans, branch, item_list):
     trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
-    if type(item_list) == dict:
+    if isinstance(item_list, dict):
         file_list = list(item_list.keys())
         type_label = "sync/update"
         is_diff = True
@@ -41,7 +42,7 @@ def build_issue(trans, branch, item_list):
     skip_count = 0
     for file_name in file_list:
         # Patch priority labels
-        patched_labels =  new_labels + trans.get_priority_labels(REPOSITORY_NAME, file_name)
+        patched_labels = new_labels + trans.get_priority_labels(REPOSITORY_NAME, file_name)
 
         # Generate issue body
         if is_diff:
@@ -156,8 +157,7 @@ class TransBot(BotPlugin):
         github_client = self._github_operator(msg)
         query = "repo:{} is:open type:issue".format(task_repository_name())
         issue_list = github_client.search_issue(query, MAX_RESULT)
-        tuple_list = [(issue.title, issue.number) for issue in issue_list]
-        tuple_list.sort()
+        tuple_list = sorted([(issue.title, issue.number) for issue in issue_list])
         count_list = {}
         for title, number in tuple_list:
             if title in count_list.keys():
@@ -190,7 +190,7 @@ class TransBot(BotPlugin):
         try:
             yield ("**Github Token:**" + self[from_user + "github_token"])
             yield ("**Github Login:**" + self[from_user + "github_login"])
-        except:
+        except BaseException:
             yield ("**Bind your Github token please.**")
 
     def _github_bound(self, person):
@@ -202,7 +202,7 @@ class TransBot(BotPlugin):
         result = True
         try:
             result = len(self[person + "github_token"]) > 0
-        except:
+        except BaseException:
             result = False
         return result
 
@@ -242,7 +242,7 @@ class TransBot(BotPlugin):
             issue.remove_from_labels("welcome")
             issue.add_to_labels("pending")
             time.sleep(1)
-        return "{} issues confirmed.".format(len(issue_list))   
+        return "{} issues confirmed.".format(len(issue_list))
 
     @arg_botcmd('issue_id', type=int)
     @arg_botcmd('--comment', type=str)
@@ -304,6 +304,43 @@ class TransBot(BotPlugin):
         )
         res = trans.cache_issues(query, OPEN_CACHE, MAX_RESULT)
         return "{} records had been cached".format(res)
+
+    @arg_botcmd('--delay_days', type=int, default=15)
+    def release_issues(self, msg, delay_days):
+        """
+        Release the translating issues that have been accepted for more than specified delay days (at least 3 days)
+        :param msg:
+        :param delay_days:
+        :return:
+        """
+        self._asset_bind(msg)
+        yield ("Processing....")
+        if delay_days < 3:
+            delay_days = 3
+        client = self._github_operator(msg)
+        cmd = "repo:{} label:translating is:open type:issue".format(
+            task_repository_name())
+        issue_list = client.search_issue(cmd, 10)
+        released_count = 0
+        now_datetime = datetime.datetime.now()
+        for issue in issue_list:
+            # find the datetime of last /accept
+            last_accept_datetime = now_datetime
+            last_accept_user = ""
+            commennt_list = issue.get_comments()
+            for comment in commennt_list:
+                if "/accept" in comment.body:
+                    last_accept_datetime = comment.created_at
+                    last_accept_user = comment.user.login
+            if (now_datetime - last_accept_datetime).days > delay_days:
+                issue.remove_from_labels("translating")
+                issue.add_to_labels("pending")
+                if last_accept_user != "":
+                    issue.remove_from_assignees(last_accept_user)
+                released_count += 1
+            time.sleep(1)
+        return "relassed {} issues that have been accepted for more than {} days".format(
+            released_count, delay_days)
 
     @arg_botcmd('branch', type=str)
     @arg_botcmd('--create_issue', type=int, default=0)
