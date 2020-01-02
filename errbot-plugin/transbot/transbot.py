@@ -226,12 +226,13 @@ def build_move_issue(trans, client, branch, item_list):
 
 
 def find_delay_issues(trans, client, delay_days):
-    delay_days = min(delay_days, 3)
+    delay_days = max(delay_days, 3)
     cmd = "repo:{} label:translating is:open type:issue".format(task_repository_name())
     issue_list = client.search_issue(cmd, 10)
     delay_issues = {}
     now_datetime = datetime.datetime.now()
     for issue in issue_list:
+        trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
         # find the datetime of last /accept
         last_accept_datetime = now_datetime
         last_accept_user = ""
@@ -240,22 +241,22 @@ def find_delay_issues(trans, client, delay_days):
             if "/accept" in comment.body:
                 last_accept_datetime = comment.created_at
                 last_accept_user = comment.user.login
-        if (now_datetime - last_accept_datetime).days > delay_days:
-            delay_issues[issue] = last_accept_user
-        trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
+        if now_datetime - last_accept_datetime > datetime.timedelta(days=delay_days):
+            delay_issues[issue.number] = [issue, last_accept_user, last_accept_datetime, now_datetime - last_accept_datetime]
     return delay_issues
 
 
 def unassign_issues(trans, issues):
     success = 0
-    for issue in issues:
+    for i in issues:
+        trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
+        issue = issues[i][0]
         issue.remove_from_labels("translating")
         issue.add_to_labels("pending")
-        user = issues[issue]
+        user = issues[i][1]
         if user != "":
             issue.remove_from_assignees(user)
         success += 1
-        trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
     return success
 
 
@@ -406,8 +407,8 @@ class TransBot(BotPlugin):
              for i in issue_list])
         yield "\n".join(result)
 
-    @botcmd
-    def confirm_all_new_issues(self, msg, args):
+    @arg_botcmd('hour', type=int)
+    def confirm_recent_new_issues(self, msg, hour):
         """
         Find issues with the label "welcome" then replace with "pending" label
         :param msg:
@@ -421,11 +422,16 @@ class TransBot(BotPlugin):
         cmd = "repo:{} label:welcome is:open type:issue".format(
             task_repository_name())
         issue_list = client.search_issue(cmd, 10)
+        end_time = datetime.datetime.now()
+        cnt = 0
         for issue in issue_list:
-            issue.remove_from_labels("welcome")
-            issue.add_to_labels("pending")
-            trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
-        yield "{} issues confirmed.".format(len(issue_list))
+            start_time = issue.created_at
+            if end_time - start_time <= datetime.timedelta(hours=hour):
+                trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
+                issue.remove_from_labels("welcome")
+                issue.add_to_labels("pending")
+                cnt += 1
+        yield "{} issues confirmed.".format(cnt)
 
     @arg_botcmd('old_label', type=str)
     @arg_botcmd('--new_label', type=str)
@@ -444,9 +450,9 @@ class TransBot(BotPlugin):
             task_repository_name(), old_label)
         issue_list = client.search_issue(cmd, 10)
         for issue in issue_list:
+            trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
             issue.remove_from_labels(old_label)
             issue.add_to_labels(new_label)
-            trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
         yield "{} issues has been changed label from {} to {}".format(len(issue_list), old_label, new_label)
 
     @arg_botcmd('issue_id', type=int)
@@ -521,7 +527,7 @@ class TransBot(BotPlugin):
         client = self._github_operator(msg)
         issues = find_delay_issues(trans, client, delay_days)
         if unassign == 0:
-            yield ("\n".join(limit_result(["{}: {}".format(i.number, i.title) for i in issues])))
+            yield ("\n".join(limit_result(["{}: {}, {}, {}".format(issues[i][0].number, issues[i][0].title, issues[i][2], issues[i][3]) for i in issues])))
         else:
             success = unassign_issues(trans, issues)
             yield "relassed {} issues that have been accepted for more than {} days".format(success, delay_days)

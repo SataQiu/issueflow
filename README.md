@@ -135,7 +135,7 @@ docker run -d --name=istio-slack-bot \
         -e TARGET_LANG="zh" \ # Target translation language
         -e BOT_TOKEN="xoxb-" \ # Slack Bot's Token
         -e BACKEND="Slack" \ # Backend as Slack
-        -e CRITICAL_COMMANDS="find_new_files_in,find_updated_files_in,cache_issue,confirm_all_new_issues,release_issues" \ # Critical command list
+        -e CRITICAL_COMMANDS="find_new_files_in,find_updated_files_in,find_deleted_files_in,cache_issue,confirm_recent_new_issues,find_delay_issues" \ # Critical command list
         -e OPERATORS="@1527062125" \ # The administrator to execute the commands
         -e PRIVATE_COMMANDS="whatsnew,github_bind,github_whoami" \ # Commands can be used in DM
         -v $(pwd)/data:/errbot/data \ # Bot's storage directory

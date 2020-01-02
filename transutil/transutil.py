@@ -154,7 +154,8 @@ class TranslateUtil:
                 full_target_file = os.sep.join([repo_base_path, target_path, source_file])
                 if not self._is_same(full_source_file, full_target_file):
                     translated_set.add(source_file)
-        result = sorted(set(source_list) - translated_set)
+        result = list(set(source_list) - translated_set)
+        result.sort()
         return self._remove_ignore_files(result, repository_name, branch_name)
 
     def cache_issues(self, query, file_name, search_limit=30):
