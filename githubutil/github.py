@@ -37,6 +37,16 @@ class GithubOperator:
         repo = self.get_repo(repository_name)
         return repo.get_issue(issue_id)
 
+    def get_pull(self, repository_name, pull_id):
+        """
+        Get pull object
+        :param repository_name:
+        :param pull_id:
+        :rtype: github.PullRequest.PullRequest
+        """
+        repo = self.get_repo(repository_name)
+        return repo.get_pull(pull_id)
+
     def search_issue(self, query, limit_interval=0):
         """
         Search issues from Github.
@@ -125,6 +135,27 @@ class GithubOperator:
                 issue.edit(milestone=ms)
                 return issue
         return None
+
+    def is_moved_file(self, repository_name, pull_id, file_name):
+        """
+        Check if the file has been moved at a PR in specified repository.
+        If True, return new file path.
+        :type repository_name: str
+        :type pull_id: int
+        :type file_name: str
+        :rtype: bool, string
+        """
+        self.check_limit()
+        try:
+            pr = self.get_pull(repository_name, pull_id)
+            files = pr.get_files()
+            for file in files:
+                if file.status == "renamed":
+                    if file.previous_filename == file_name:
+                        return True, file.filename
+        except Exception:
+            return False, ""
+        return False, ""
 
 
 class GithubAction(GithubOperator):

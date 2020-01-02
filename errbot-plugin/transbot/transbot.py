@@ -19,16 +19,9 @@ REPOSITORY_NAME = os.getenv("REPOSITORY")
 TARGET_LANG = os.getenv("TARGET_LANG")
 
 
-def build_issue(trans, branch, item_list):
+def build_new_issue(trans, branch, file_list):
     trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
-    if isinstance(item_list, dict):
-        file_list = list(item_list.keys())
-        type_label = "sync/update"
-        is_diff = True
-    else:
-        file_list = item_list
-        type_label = "sync/new"
-        is_diff = False
+    type_label = "sync/new"
 
     # Get default labels
     new_labels = trans.get_default_label(
@@ -45,20 +38,11 @@ def build_issue(trans, branch, item_list):
         patched_labels = new_labels + trans.get_priority_labels(REPOSITORY_NAME, file_name)
 
         # Generate issue body
-        if is_diff:
-            diff = item_list[file_name]
-            body = "Source File: [{}]({})\nDiff:\n~~~diff\n {}\n~~~"
-            body = body.format(
-                file_name,
-                trans.gen_source_url(REPOSITORY_NAME, branch, file_name),
-                diff
-            )
-        else:
-            body = "Source File: [{}]({})"
-            body = body.format(
-                file_name,
-                trans.gen_source_url(REPOSITORY_NAME, branch, file_name),
-            )
+        body = "Source File: [{}]({})"
+        body = body.format(
+            file_name,
+            trans.gen_source_url(REPOSITORY_NAME, branch, file_name),
+        )
 
         # Search and create issue
         new_issue = trans.create_issue(
@@ -75,6 +59,204 @@ def build_issue(trans, branch, item_list):
         if (new_count + skip_count) % MAX_RESULT:
             trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
     return new_count, skip_count
+
+
+def build_update_issue(trans, branch, item_list):
+    trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
+    type_label = "sync/update"
+    file_list = list(item_list.keys())
+
+    # Get default labels
+    new_labels = trans.get_default_label(
+        REPOSITORY_NAME, branch, TARGET_LANG)
+    new_labels.append(type_label)
+    search_labels = trans.get_search_label(
+        REPOSITORY_NAME, branch, TARGET_LANG)
+
+    # Create Issue for new files
+    new_count = 0
+    skip_count = 0
+    for file_name in file_list:
+        # Patch priority labels
+        patched_labels = new_labels + trans.get_priority_labels(REPOSITORY_NAME, file_name)
+
+        # Generate issue body
+        diff = item_list[file_name]
+        body = "Source File: [{}]({})\nDiff:\n~~~diff\n {}\n~~~"
+        body = body.format(
+            file_name,
+            trans.gen_source_url(REPOSITORY_NAME, branch, file_name),
+            diff
+        )
+
+        # Search and create issue
+        new_issue = trans.create_issue(
+            task_repository_name(),
+            file_name, body, patched_labels, search_labels,
+            "", True
+        )
+        if new_issue is None:
+            skip_count += 1
+        else:
+            new_count += 1
+            if new_count >= MAX_WRITE:
+                break
+        if (new_count + skip_count) % MAX_RESULT:
+            trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
+    return new_count, skip_count
+
+
+def build_delete_issue(trans, client, branch, file_list):
+    trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
+    type_label = "sync/delete"
+
+    # Get default labels
+    new_labels = trans.get_default_label(
+        REPOSITORY_NAME, branch, TARGET_LANG)
+    new_labels.append(type_label)
+    search_labels = trans.get_search_label(
+        REPOSITORY_NAME, branch, TARGET_LANG)
+
+    # Create Issue for new files
+    new_count = 0
+    skip_count = 0
+    for file_name in file_list:
+        # Patch priority labels
+        patched_labels = new_labels + trans.get_priority_labels(REPOSITORY_NAME, file_name)
+
+        # Generate issue body
+        body = "Target File: [{}]({})"
+        body = body.format(
+            file_name,
+            trans.gen_target_url(REPOSITORY_NAME, branch, file_name),
+        )
+
+        # Close related invalid issues
+        query = "repo:{} state:open is:issue in:title {}".format(task_repository_name(), file_name)
+        if len(search_labels) > 0:
+            query = "{} {}".format(query, " ".join(["label:{}".format(i) for i in search_labels]))
+        issue_list = client.search_issue(query, MAX_RESULT)
+        for issue in issue_list:
+            if issue.title == file_name:
+                if type_label not in [i.name for i in issue.labels]:
+                    issue.create_comment("closed by [sync/delete] issue bot")
+                    issue.edit(state="closed")
+
+        # Search and create issue
+        new_issue = trans.create_issue(
+            task_repository_name(),
+            file_name, body, patched_labels, search_labels,
+            "", True
+        )
+        if new_issue is None:
+            skip_count += 1
+        else:
+            new_count += 1
+            if new_count >= MAX_WRITE:
+                break
+        if (new_count + skip_count) % MAX_RESULT:
+            trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
+    return new_count, skip_count
+
+
+def build_move_issue(trans, client, branch, item_list):
+    trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
+    type_label = "sync/move"
+    file_list = list(item_list.keys())
+
+    # Get default labels
+    new_labels = trans.get_default_label(
+        REPOSITORY_NAME, branch, TARGET_LANG)
+    new_labels.append(type_label)
+    search_labels = trans.get_search_label(
+        REPOSITORY_NAME, branch, TARGET_LANG)
+
+    # Create Issue for new files
+    new_count = 0
+    skip_count = 0
+    for file_name in file_list:
+        # Patch priority labels
+        patched_labels = new_labels + trans.get_priority_labels(REPOSITORY_NAME, file_name)
+
+        # Generate issue body
+        body = "From: [{}]({})\n To: [{}]({})"
+        body = body.format(
+            item_list[file_name],
+            trans.gen_source_url(REPOSITORY_NAME, branch, item_list[file_name]),
+            file_name,
+            trans.gen_source_url(REPOSITORY_NAME, branch, file_name),
+        )
+
+        # Close related invalid issues
+        query = "repo:{} state:open is:issue in:title {}".format(task_repository_name(), file_name)
+        if len(search_labels) > 0:
+            query = "{} {}".format(query, " ".join(["label:{}".format(i) for i in search_labels]))
+        issue_list = client.search_issue(query, MAX_RESULT)
+        for issue in issue_list:
+            if issue.title == file_name:
+                label_list = [i.name for i in issue.labels]
+                if type_label not in label_list:
+                    issue.create_comment("closed by [sync/move] issue bot")
+                    issue.edit(state="closed")
+
+        query = "repo:{} state:open is:issue in:title {}".format(task_repository_name(), item_list[file_name])
+        if len(search_labels) > 0:
+            query = "{} {}".format(query, " ".join(["label:{}".format(i) for i in search_labels]))
+        issue_list = client.search_issue(query, MAX_RESULT)
+        for issue in issue_list:
+            if issue.title == file_name:
+                issue.create_comment("closed by [sync/move] issue bot")
+                issue.edit(state="closed")
+
+        # Search and create issue
+        new_issue = trans.create_issue(
+            task_repository_name(),
+            file_name, body, patched_labels, search_labels,
+            "", True
+        )
+        if new_issue is None:
+            skip_count += 1
+        else:
+            new_count += 1
+            if new_count >= MAX_WRITE:
+                break
+        if (new_count + skip_count) % MAX_RESULT:
+            trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
+    return new_count, skip_count
+
+
+def find_delay_issues(trans, client, delay_days):
+    delay_days = min(delay_days, 3)
+    cmd = "repo:{} label:translating is:open type:issue".format(task_repository_name())
+    issue_list = client.search_issue(cmd, 10)
+    delay_issues = {}
+    now_datetime = datetime.datetime.now()
+    for issue in issue_list:
+        # find the datetime of last /accept
+        last_accept_datetime = now_datetime
+        last_accept_user = ""
+        commennt_list = issue.get_comments()
+        for comment in commennt_list:
+            if "/accept" in comment.body:
+                last_accept_datetime = comment.created_at
+                last_accept_user = comment.user.login
+        if (now_datetime - last_accept_datetime).days > delay_days:
+            delay_issues[issue] = last_accept_user
+        trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
+    return delay_issues
+
+
+def unassign_issues(trans, issues):
+    success = 0
+    for issue in issues:
+        issue.remove_from_labels("translating")
+        issue.add_to_labels("pending")
+        user = issues[issue]
+        if user != "":
+            issue.remove_from_assignees(user)
+        success += 1
+        trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
+    return success
 
 
 def task_repository_name():
@@ -145,7 +327,7 @@ class TransBot(BotPlugin):
         :return:
         """
         trans = self._translation_util(msg)
-        return "\n".join(trans.list_branches(REPOSITORY_NAME))
+        yield "\n".join(trans.list_branches(REPOSITORY_NAME))
 
     @botcmd
     def find_dupe_issues(self, msg, args):
@@ -173,7 +355,7 @@ class TransBot(BotPlugin):
                 title, " ".join([str(i) for i in number_list]))
             count += 1
         result += "\n{} duplicated issues found.".format(count)
-        return result
+        yield result
 
     @arg_botcmd('token', type=str)
     def github_bind(self, msg, token):
@@ -182,7 +364,7 @@ class TransBot(BotPlugin):
         user = client.get_user()
         self[from_user + "github_token"] = token
         self[from_user + "github_login"] = user.login
-        return "Hello {}, Welcome.".format(user.login)
+        yield "Hello {}, Welcome.".format(user.login)
 
     @botcmd
     def github_whoami(self, msg, args):
@@ -222,7 +404,7 @@ class TransBot(BotPlugin):
         result = limit_result(
             ["{}: {}".format(i.number, i.title)
              for i in issue_list])
-        return "\n".join(result)
+        yield "\n".join(result)
 
     @botcmd
     def confirm_all_new_issues(self, msg, args):
@@ -234,6 +416,7 @@ class TransBot(BotPlugin):
         """
         self._asset_bind(msg)
         yield ("Processing....")
+        trans = self._translation_util(msg)
         client = self._github_operator(msg)
         cmd = "repo:{} label:welcome is:open type:issue".format(
             task_repository_name())
@@ -241,8 +424,30 @@ class TransBot(BotPlugin):
         for issue in issue_list:
             issue.remove_from_labels("welcome")
             issue.add_to_labels("pending")
-            time.sleep(1)
-        return "{} issues confirmed.".format(len(issue_list))
+            trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
+        yield "{} issues confirmed.".format(len(issue_list))
+
+    @arg_botcmd('old_label', type=str)
+    @arg_botcmd('--new_label', type=str)
+    def change_issues_label(self, msg, old_label, new_label):
+        """
+        Bump the version label of issues from old_label to new_label
+        :param msg:
+        :param old_label:
+        :param new_label:
+        """
+        self._asset_bind(msg)
+        yield ("Processing....")
+        trans = self._translation_util(msg)
+        client = self._github_operator(msg)
+        cmd = "repo:{} label:{} is:open type:issue".format(
+            task_repository_name(), old_label)
+        issue_list = client.search_issue(cmd, 10)
+        for issue in issue_list:
+            issue.remove_from_labels(old_label)
+            issue.add_to_labels(new_label)
+            trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
+        yield "{} issues has been changed label from {} to {}".format(len(issue_list), old_label, new_label)
 
     @arg_botcmd('issue_id', type=int)
     @arg_botcmd('--comment', type=str)
@@ -257,9 +462,8 @@ class TransBot(BotPlugin):
         """
         self._asset_bind(msg)
         client = self._github_operator(msg)
-        comment_obj = client.issue_comment(task_repository_name(),
-                                           issue_id, comment)
-        return comment_obj.html_url
+        comment_obj = client.issue_comment(task_repository_name(), issue_id, comment)
+        yield comment_obj.html_url
 
     @arg_botcmd('query', type=str)
     def search_issues(self, msg, query):
@@ -271,10 +475,7 @@ class TransBot(BotPlugin):
         self._asset_bind(msg)
         client = self._github_operator(msg)
         issue_list = client.search_issue(query, 10)
-        return "\n".join(limit_result(
-            ["{}: {}".format(i.number, i.title)
-             for i in issue_list]
-        ))
+        yield "\n".join(limit_result(["{}: {}".format(i.number, i.title) for i in issue_list]))
 
     @arg_botcmd('issue_id', type=int)
     def show_issue(self, msg, issue_id):
@@ -286,8 +487,7 @@ class TransBot(BotPlugin):
         :rtype: str
         """
         self._asset_bind(msg)
-        return "https://github.com/{}/issues/{}".format(task_repository_name(),
-                                                        issue_id)
+        yield "https://github.com/{}/issues/{}".format(task_repository_name(), issue_id)
 
     @botcmd
     def cache_issue(self, msg, args):
@@ -303,44 +503,28 @@ class TransBot(BotPlugin):
             task_repository_name()
         )
         res = trans.cache_issues(query, OPEN_CACHE, MAX_RESULT)
-        return "{} records had been cached".format(res)
+        yield "{} records had been cached".format(res)
 
-    @arg_botcmd('--delay_days', type=int, default=15)
-    def release_issues(self, msg, delay_days):
+    @arg_botcmd('delay_days', type=int, default=14)
+    @arg_botcmd('--unassign', type=int, default=0)
+    def find_delay_issues(self, msg, delay_days, unassign):
         """
         Release the translating issues that have been accepted for more than specified delay days (at least 3 days)
         :param msg:
         :param delay_days:
+        :param unassign:
         :return:
         """
         self._asset_bind(msg)
         yield ("Processing....")
-        if delay_days < 3:
-            delay_days = 3
+        trans = self._translation_util(msg)
         client = self._github_operator(msg)
-        cmd = "repo:{} label:translating is:open type:issue".format(
-            task_repository_name())
-        issue_list = client.search_issue(cmd, 10)
-        released_count = 0
-        now_datetime = datetime.datetime.now()
-        for issue in issue_list:
-            # find the datetime of last /accept
-            last_accept_datetime = now_datetime
-            last_accept_user = ""
-            commennt_list = issue.get_comments()
-            for comment in commennt_list:
-                if "/accept" in comment.body:
-                    last_accept_datetime = comment.created_at
-                    last_accept_user = comment.user.login
-            if (now_datetime - last_accept_datetime).days > delay_days:
-                issue.remove_from_labels("translating")
-                issue.add_to_labels("pending")
-                if last_accept_user != "":
-                    issue.remove_from_assignees(last_accept_user)
-                released_count += 1
-            time.sleep(1)
-        return "relassed {} issues that have been accepted for more than {} days".format(
-            released_count, delay_days)
+        issues = find_delay_issues(trans, client, delay_days)
+        if unassign == 0:
+            yield ("\n".join(limit_result(["{}: {}".format(i.number, i.title) for i in issues])))
+        else:
+            success = unassign_issues(trans, issues)
+            yield "relassed {} issues that have been accepted for more than {} days".format(success, delay_days)
 
     @arg_botcmd('branch', type=str)
     @arg_botcmd('--create_issue', type=int, default=0)
@@ -363,7 +547,7 @@ class TransBot(BotPlugin):
             yield ("\n".join(limit_result(new_file_list)))
         else:
             yield ("Processing....")
-            new_count, skip_count = build_issue(trans, branch, new_file_list)
+            new_count, skip_count = build_new_issue(trans, branch, new_file_list)
             yield ("{} Issues had been created. {} Issues had been skipped.".format(
                 new_count, skip_count))
             yield ("Please cache issues again.")
@@ -379,14 +563,47 @@ class TransBot(BotPlugin):
         :param create_issue:
         """
         self._asset_bind(msg)
-        yield ("Processing....")
         trans = self._translation_util(msg)
         updated_files = trans.find_updated_files(REPOSITORY_NAME, branch, TARGET_LANG)
         if create_issue == 0:
             yield ("\n".join(limit_result(list(updated_files.keys()))))
         else:
-            new_count, skip_count = build_issue(trans, branch, updated_files)
+            yield ("Processing....")
+            new_count, skip_count = build_update_issue(trans, branch, updated_files)
             yield ("{} Issues had been created. {} Issues had been skipped.".format(
+                new_count, skip_count))
+            yield ("Please cache issues again.")
+
+    @arg_botcmd('branch', type=str)
+    @arg_botcmd('--create_issue', type=int, default=0)
+    def find_deleted_files_in(self, msg, branch, create_issue):
+        """
+        Find deleted/moved files from a branch for a language.
+
+        :param msg:
+        :param branch:
+        :param create_issue:
+        """
+        self._asset_bind(msg)
+        trans = self._translation_util(msg)
+        deleted_file_list = trans.find_deleted_files(
+            REPOSITORY_NAME, branch, TARGET_LANG)
+
+        moved_files = trans.find_moved_files_in_deleted_files(REPOSITORY_NAME, branch, TARGET_LANG, deleted_file_list)
+
+        deleted_files = list(sorted(set(deleted_file_list) - set(moved_files.values())))
+
+        if create_issue == 0:
+            yield ("move: \n" + "\n".join(limit_result(list(sorted(moved_files.values())))))
+            yield ("delete: \n" + "\n".join(limit_result(deleted_file_list)))
+        else:
+            yield ("Processing....")
+            client = self._github_operator(msg)
+            new_count, skip_count = build_move_issue(trans, client, branch, moved_files)
+            yield ("move: {} Issues had been created. {} Issues had been skipped.".format(
+                new_count, skip_count))
+            new_count, skip_count = build_delete_issue(trans, client, branch, deleted_file_list)
+            yield ("delete: {} Issues had been created. {} Issues had been skipped.".format(
                 new_count, skip_count))
             yield ("Please cache issues again.")
 
@@ -397,7 +614,7 @@ class TransBot(BotPlugin):
         limit = util.get_limit()
         core_pattern = "Core-Limit: {}\nCore-Remaining: {}\nCore-Reset: {}\n"
         search_pattern = "Search-Limit: {}\nSearch-Remaining: {}\nSearch-Reset: {}\n"
-        return (core_pattern + search_pattern).format(
+        yield (core_pattern + search_pattern).format(
             limit["core"]["limit"],
             limit["core"]["remaining"],
             limit["core"]["reset"],
@@ -430,6 +647,6 @@ class TransBot(BotPlugin):
         trans = self._translation_util(msg)
         count = trans.set_milestone_by_label(REPOSITORY_NAME,
                                              [label], milestone)
-        return "{} issues had been moved into the milestone {}".format(
+        yield "{} issues had been moved into the milestone {}".format(
             count, milestone
         )

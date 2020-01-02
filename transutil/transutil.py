@@ -123,7 +123,7 @@ class TranslateUtil:
         """
         Find files which is in the source path, but not in the
         target path, and return it as a List of string.
-        If the translated document is exactly the same as the original document, 
+        If the translated document is exactly the same as the original document,
         it is considered untranslated.
 
         :param branch_name:
@@ -148,14 +148,13 @@ class TranslateUtil:
         # return the different files list
         target_set = set(target_list)
         translated_set = set()
-        for  source_file in source_list:
+        for source_file in source_list:
             if source_file in target_set:
                 full_source_file = os.sep.join([repo_base_path, source_path, source_file])
                 full_target_file = os.sep.join([repo_base_path, target_path, source_file])
                 if not self._is_same(full_source_file, full_target_file):
                     translated_set.add(source_file)
-        result = list(set(source_list) - translated_set)
-        result.sort()
+        result = sorted(set(source_list) - translated_set)
         return self._remove_ignore_files(result, repository_name, branch_name)
 
     def cache_issues(self, query, file_name, search_limit=30):
@@ -240,6 +239,71 @@ class TranslateUtil:
                 result[file_name] = diff
         return result
 
+    def find_deleted_files(self, repository_name, branch_name, language):
+        """
+        Find files which is in the target path, but not in the
+        source path, and return it as a List of string.
+
+        :param branch_name:
+        :param repository_name:
+        :rtype: list of str
+        :param language: Language name (in the configure file)
+        :type language: str
+        """
+
+        repo_base_path = self._configure.get_branch(repository_name, branch_name)["path"]
+
+        target_path = self._configure.get_languages(
+            repository_name, language)["path"]
+        source_path = self._configure.get_source(
+            repository_name)["path"]
+
+        # List files in source/language path
+        source_list = self._get_clean_files(repository_name,
+                                            branch_name, source_path)
+        target_list = self._get_clean_files(repository_name,
+                                            branch_name, target_path)
+
+        # return the different files list
+        source_set = set(source_list)
+        deleted_set = set()
+        for target_file in target_list:
+            if target_file not in source_set:
+                deleted_set.add(target_file)
+        result = sorted(deleted_set)
+        return self._remove_ignore_files(result, repository_name, branch_name)
+
+    def find_moved_files_in_deleted_files(self, repository_name, branch_name, language, deleted_files):
+        """
+        Find files which is moved in deleted file list.
+
+        :param branch_name:
+        :param repository_name:
+        :param language: Language name (in the configure file)
+        """
+        repo_base_path = self._configure.get_branch(repository_name, branch_name)["path"]
+        git_cmd = self._get_git_commander(repo_base_path)
+        source_path = self._configure.get_source(repository_name)["path"]
+
+        repository_data = self._configure.get_repository(repository_name)
+        task_repo_name = "{}/{}".format(
+            repository_data["github"]["task"]["owner"],
+            repository_data["github"]["task"]["repository"]
+        )
+
+        github_client = GithubOperator(self._github_token)
+        moved_files = {}
+        for file_name in deleted_files:
+            file_full_path = source_path + file_name
+            pull_id = git_cmd.get_last_pr_number(file_full_path)
+            if pull_id == -1:
+                continue
+            is_moved, new_path = github_client.is_moved_file(task_repo_name, pull_id, file_full_path)
+            if is_moved:
+                moved_files[new_path] = file_name
+
+        return moved_files
+
     def get_default_label(self, repository_name, branch, language):
         """
         A new issue will be labeled with these labels.
@@ -259,11 +323,11 @@ class TranslateUtil:
         :param file_name:
         :return:
         """
-        priority_matches= self._configure.get_repository(repository_name)["priorities"]
+        priority_matches = self._configure.get_repository(repository_name)["priorities"]
         for priority_match in priority_matches:
             for pattern in priority_match["patterns"]:
                 if re.match(pattern, file_name):
-                    return  priority_match["labels"]
+                    return priority_match["labels"]
         return labels
 
     def get_search_label(self, repository_name, branch, language):
@@ -343,6 +407,19 @@ class TranslateUtil:
         :param file_name:
         """
         prefix = self._configure.get_branch(repo, branch)["url_prefix"]["source"]
+        middle = ""
+        if file_name[:1] != "/":
+            middle = "/"
+        return "{}{}{}".format(prefix, middle, file_name)
+
+    def gen_target_url(self, repo, branch, file_name):
+        """
+
+        :param repo:
+        :param branch:
+        :param file_name:
+        """
+        prefix = self._configure.get_branch(repo, branch)["url_prefix"]["target"]
         middle = ""
         if file_name[:1] != "/":
             middle = "/"

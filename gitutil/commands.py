@@ -43,6 +43,19 @@ class GitCommand:
         mat = re.match(r"^(.*?)\s+.*?$", output.strip())
         return mat[1]
 
+    def get_last_pr_number(self, file_name):
+        cmd = [
+            "log",
+            "-1", "--oneline", "--",
+            file_name]
+        output = self.__command_wrapper(cmd)
+        if len(output.strip()) == 0:
+            return -1
+        mat = re.match(r"^.*\(#(\d+?)\)$", output.strip())
+        if mat is None:
+            return -1
+        return int(mat[1])
+
     def list_files(self):
         command = ["ls-files"]
         lines = (self.__command_wrapper(command)).strip().split("\n")
@@ -66,7 +79,7 @@ class GitCommand:
 
     def get_diff_by_hash(self, filename, new_hashcode, old_hashcode):
         command = [
-            "diff", new_hashcode, old_hashcode,
+            "diff", old_hashcode, new_hashcode,
             filename
         ]
         return self.__command_wrapper(command).strip()

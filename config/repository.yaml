@@ -19,13 +19,14 @@ repositories:
     - patterns: ['^\/.*?$']
       labels: ['priority/P0']
     branches:
-    - name: "1.4"
+    - name: "master"
       target_branch: master
       path: "/errbot/repository/master"
       url_prefix:
         source: "https://github.com/istio/istio.io/tree/master/content/en"
+        target: "https://github.com/istio/istio.io/tree/master/content/zh"
       labels:
-      - version/1.4
+      - version/master
       ignore: ['^\/test\/.*?$', '^\/boilerplates\/test.*?$']
     source:
       name: en
