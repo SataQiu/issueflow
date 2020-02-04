@@ -117,7 +117,23 @@ class TranslateUtil:
     def _is_same(self, source_file, target_file):
         source_fd = open(source_file, "rb")
         target_fd = open(target_file, "rb")
-        return self._md5Hash(source_fd) == self._md5Hash(target_fd)
+        same = self._md5Hash(source_fd) == self._md5Hash(target_fd)
+        source_fd.close()
+        target_fd.close()
+        return same
+
+    def _is_generated(self, source_file):
+        fd = open(source_file, 'r', encoding='UTF-8')
+        line_num, generated = 0, False
+        for line in fd:
+            line_num = line_num + 1
+            if line_num > 2:
+                break
+            if line.find('WARNING: THIS IS AN AUTO-GENERATED FILE, DO NOT EDIT.') >= 0:
+                generated = True
+                break
+        fd.close()
+        return generated
 
     def find_new_files(self, repository_name, branch_name, language):
         """
@@ -149,8 +165,11 @@ class TranslateUtil:
         target_set = set(target_list)
         translated_set = set()
         for source_file in source_list:
+            full_source_file = os.sep.join([repo_base_path, source_path, source_file])
+            if self._is_generated(full_source_file):
+                translated_set.add(source_file)
+                continue
             if source_file in target_set:
-                full_source_file = os.sep.join([repo_base_path, source_path, source_file])
                 full_target_file = os.sep.join([repo_base_path, target_path, source_file])
                 if not self._is_same(full_source_file, full_target_file):
                     translated_set.add(source_file)
