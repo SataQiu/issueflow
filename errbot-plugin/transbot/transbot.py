@@ -419,7 +419,7 @@ class TransBot(BotPlugin):
         yield ("Processing....")
         trans = self._translation_util(msg)
         client = self._github_operator(msg)
-        cmd = "repo:{} label:welcome is:open type:issue".format(
+        cmd = "repo:{} is:open type:issue".format(
             task_repository_name())
         issue_list = client.search_issue(cmd, 10)
         end_time = datetime.datetime.now()
@@ -428,9 +428,16 @@ class TransBot(BotPlugin):
             start_time = issue.created_at
             if end_time - start_time <= datetime.timedelta(hours=hour):
                 trans.wait_for_limit(MAX_RESULT, MAX_RESULT)
-                issue.remove_from_labels("welcome")
-                issue.add_to_labels("pending")
-                cnt += 1
+                confirmed = False
+                for label in issue.get_labels():
+                    if label.name == "welcome":
+                        issue.remove_from_labels("welcome")
+                    else:
+                        if label.name in ["pending", "translating", "pushed", "finished"]:
+                            confirmed = True
+                if not confirmed:
+                    issue.add_to_labels("pending")
+                    cnt += 1
         yield "{} issues confirmed.".format(cnt)
 
     @arg_botcmd('old_label', type=str)
