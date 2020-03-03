@@ -4,7 +4,8 @@
 from flask import Flask, request
 import os
 import sys
-from githubutil import action
+import traceback
+from githubutil import github, action
 
 import logging.handlers
 
@@ -38,6 +39,19 @@ def log_incoming_comment(data):
         data["comment"]["body"]
     )
     logger.info(content)
+
+
+@app.route('/healthz', methods = ['GET'])
+def healthz():
+    client = github.GithubOperator(TOKEN)
+    try:
+        limit = client.get_limit()
+        logger.info("limit: {} remaining: {}".format(limit["core"]["limit"], limit["core"]["remaining"]))
+        return "True"
+    except Exception as e:
+        exstr = traceback.format_exc()
+        logger.warn(exstr)
+    return "False"
 
 
 @app.route('/', methods = ['GET', 'POST'])
