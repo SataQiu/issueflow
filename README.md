@@ -141,7 +141,7 @@ docker run -d --name=istio-slack-bot \
         -v $(pwd)/data:/errbot/data \ # Bot's storage directory
         -v $(pwd)/config:/errbot/config \ # Bot's configure directory
         -v $(pwd)/repository:/errbot/repository \ # Repository directory
-        shidaqiu/translate-chatbot:1.1 # Docker image name
+        shidaqiu/translate-chatbot:1.3 # Docker image name
 ~~~
 
 

@@ -5,7 +5,7 @@ apk add --virtual .build-deps \
     python3-dev musl-dev gcc libffi-dev openssl-dev \
     libxml2-dev
 pip3 install --upgrade pip
-pip3 install  --no-cache-dir -r /tmp/requirements.txt
+pip3 install --no-cache-dir -r /tmp/requirements.txt
 apk del .build-deps
 
 mkdir /errbot /errbot/data /errbot/plugins

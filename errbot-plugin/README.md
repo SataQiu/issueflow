@@ -1,7 +1,7 @@
 ## Build
 
 ```bash
-errbot-build.sh && cd /tmp/errbot && docker build -t shidaqiu/translate-chatbot:1.1 .
+errbot-build.sh && cd /tmp/errbot && docker build -t shidaqiu/translate-chatbot:1.3 .
 ```
 
 ## Run Server
@@ -24,5 +24,5 @@ docker run -d --name=istio-slack-bot \
         -v $(pwd)/data:/errbot/data \ # Bot 的存储路径
         -v $(pwd)/config:/errbot/config \ # Bot 的配置路径
         -v $(pwd)/repository:/errbot/repository \ # 代码库路径
-        shidaqiu/translate-chatbot:1.1 # 镜像名称
+        shidaqiu/translate-chatbot:1.3 # 镜像名称
 ```
