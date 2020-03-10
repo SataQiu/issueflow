@@ -57,9 +57,9 @@ def healthz():
 @app.route('/', methods = ['GET', 'POST'])
 def webhook():
     if request.method != "POST":
-        return "Method Not Allowed"
+        return "405 Method not allowed"
     
-    data = request.get_json()
+    data = request.get_json(force=True)
     event_type = request.headers["X-GitHub-Event"]
     event_action = data["action"]
 
