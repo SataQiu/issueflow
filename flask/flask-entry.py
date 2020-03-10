@@ -10,12 +10,12 @@ from githubutil import github, action
 import logging.handlers
 
 MAX_LOG_BYTES = 1024 * 1024
-LOG_LEVEL = os.getenv('LOG_LEVEL',  str(logging.INFO))
-PORT = os.getenv("PORT", "80")
-TOKEN = os.getenv('GITHUB_TOKEN', "")
-WORKFLOW = os.getenv('WORKFLOW', "")
-ADMINS = os.getenv('ADMINS', "")
-INTERVAL = os.getenv('INTERVAL', "1")
+LOG_LEVEL = os.getenv('LOG_LEVEL', str(logging.INFO)).strip()
+PORT = os.getenv("PORT", "80").strip()
+TOKEN = os.getenv('GITHUB_TOKEN', "").strip()
+WORKFLOW = os.getenv('WORKFLOW', "").strip()
+ADMINS = os.getenv('ADMINS', "").strip()
+INTERVAL = os.getenv('INTERVAL', "1").strip()
 
 
 handler = logging.StreamHandler(sys.stdout)

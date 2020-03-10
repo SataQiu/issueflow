@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: issueflow
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: oauth-token
+  namespace: issueflow
+type: Opaque
+data:
+  token: "$GITHUB_TOKEN_BASE64"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: istio-translate-issueflow-bot
+  namespace: issueflow
+  labels:
+    app: istio-translate-issueflow-bot
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: istio-translate-issueflow-bot
+  template:
+    metadata:
+      labels:
+        app: istio-translate-issueflow-bot
+    spec:
+      containers:
+      - name: istio-translate-issueflow-bot
+        image: shidaqiu/translate-issueflow:1.1
+        imagePullPolicy: "Always"
+        env:
+        - name: WORKFLOW
+          value: "istio"
+        - name: ADMINS
+          value: "rootsongjc,SataQiu"
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: oauth-token
+              key: token
+        ports:
+        - containerPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: istio-translate-issueflow-bot
+  namespace: issueflow
+spec:
+  selector:
+    app: istio-translate-issueflow-bot
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
+      nodePort: 31863
