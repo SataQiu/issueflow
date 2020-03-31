@@ -1,7 +1,7 @@
 ## Build image
 
 ```sh
-$ docker build -t shidaqiu/istio-inspect:0.1 .
+$ docker build -t shidaqiu/istio-inspect:1.0 .
 ```
 
 ## Run
@@ -10,5 +10,5 @@ $ docker build -t shidaqiu/istio-inspect:0.1 .
 $ docker run -dt --name=istio-inspect \
         --restart=always \
         -e GITHUB_TOKEN=xxx \
-        shidaqiu/istio-inspect:0.1
+        shidaqiu/istio-inspect:1.0
 ```
