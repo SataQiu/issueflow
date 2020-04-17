@@ -31,7 +31,7 @@ spec:
     spec:
       containers:
       - name: istio-translate-issueflow-bot
-        image: shidaqiu/translate-issueflow:1.1
+        image: shidaqiu/translate-issueflow:1.4
         imagePullPolicy: "Always"
         env:
         - name: WORKFLOW

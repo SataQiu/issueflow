@@ -239,9 +239,9 @@ class GithubCondition(GithubOperator):
         if item["type"] == "user_is_member":
             if not self.check_user_is_member(subject, item["value"]):
                 return False
-        # if item["type"] == "search":
-        #     if not self.check_search(subject, item["value"]):
-        #         return False
+        if item["type"] == "search":
+            if not self.check_search(subject, item["value"]):
+                return False
         if item["type"] == "user_in_list":
             if not self.check_user_in_list(subject, item["value"]):
                 return False
